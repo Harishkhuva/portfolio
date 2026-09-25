@@ -1,5 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { db } from './db';
+import { createClient } from '@libsql/client';
+
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN!,
+});
 
 const COOKIE_NAME = 'admin_session';
 const SESSION_DURATION = 60 * 60 * 24; // 24 hours
