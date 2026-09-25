@@ -21,8 +21,6 @@ import ServicesEditor from './editors/ServicesEditor';
 import PlatformsEditor from './editors/PlatformsEditor';
 import ThemeEditor from './editors/ThemeEditor';
 
-const ADMIN_PASSWORD = 'harish-admin-2026';
-const STORAGE_KEY = 'harish-admin-auth';
 
 type Tab = 'dashboard' | 'profile' | 'skills' | 'projects' | 'services' | 'platforms' | 'theme';
 
@@ -37,7 +35,25 @@ const navItems: { id: Tab; label: string; icon: ReactNode }[] = [
 ];
 
 export default function AdminPanel() {
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem(STORAGE_KEY) === 'yes');
+  const [authed, setAuthed] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/auth', {
+      method: 'GET',
+      credentials: 'include',
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setAuthed(data.authenticated === true);
+      })
+      .catch(() => {
+        setAuthed(false);
+      })
+      .finally(() => {
+        setCheckingAuth(false);
+      });
+  }, []);
   const [tab, setTab] = useState<Tab>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -45,10 +61,19 @@ export default function AdminPanel() {
     setSidebarOpen(false);
   }, [tab]);
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-subtle)]">
+        <div className="text-sm text-ink-500">
+          Checking admin access...
+        </div>
+      </div>
+    );
+  }
+
   if (!authed) {
     return <PasswordGate onSuccess={() => setAuthed(true)} />;
   }
-
   return (
     <div className="min-h-screen bg-[var(--bg-subtle)]">
       {/* Top bar */}
@@ -78,7 +103,14 @@ export default function AdminPanel() {
           </a>
           <button
             onClick={() => {
-              sessionStorage.removeItem(STORAGE_KEY);
+              const handleLogout = async () => {
+                await fetch('/api/auth', {
+                  method: 'DELETE',
+                  credentials: 'include',
+                });
+
+                setAuthed(false);
+              };
               setAuthed(false);
             }}
             className="flex items-center gap-2 rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 ring-1 ring-red-200 transition-colors hover:bg-red-100"
@@ -141,16 +173,36 @@ function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
   const [pw, setPw] = useState('');
   const [error, setError] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pw === ADMIN_PASSWORD) {
-      sessionStorage.setItem(STORAGE_KEY, 'yes');
-      onSuccess();
-    } else {
-      setError(true);
-      setPw('');
-    }
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  setError(false);
+
+  try {
+    const response = await fetch('/api/auth', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            password: pw,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.authenticated === true) {
+          setPw('');
+          onSuccess();
+        } else {
+          setError(true);
+          setPw('');
+        }
+      } catch {
+        setError(true);
+      }
+    };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-ink-950 px-5">
