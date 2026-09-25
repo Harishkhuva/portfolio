@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { db } from './_lib/db';
+import { db } from './db';
 
 const COOKIE_NAME = 'admin_session';
 const SESSION_DURATION = 60 * 60 * 24; // 24 hours
